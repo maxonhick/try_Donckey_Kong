@@ -29,22 +29,29 @@ blocks_rect = []
 stair = pygame.image.load('images/ladder4.png').convert_alpha()
 stairs_rect = []
 full_stairs_rect = False
+stair_y = 0
+stair_x = 0
 
 # mario
-mario_right = [pygame.image.load('images/mario/right/mario-right.png'),
-               pygame.image.load('images/mario/right/jump-right.png'),
-               pygame.image.load('images/mario/right/mario-right.png'),
-               pygame.image.load('images/mario/right/run-right.png')]
-mario_left = [pygame.image.load('images/mario/left/mario-left.png'),
-               pygame.image.load('images/mario/left/jump-left.png'),
-               pygame.image.load('images/mario/left/mario-left.png'),
+mario_right = [pygame.image.load('images/mario/right/mario-right.png').convert_alpha(),
+               pygame.image.load('images/mario/right/jump-right.png').convert_alpha(),
+               pygame.image.load('images/mario/right/mario-right.png').convert_alpha(),
+               pygame.image.load('images/mario/right/run-right.png').convert_alpha()]
+mario_left = [pygame.image.load('images/mario/left/mario-left.png').convert_alpha(),
+               pygame.image.load('images/mario/left/jump-left.png').convert_alpha(),
+               pygame.image.load('images/mario/left/mario-left.png').convert_alpha(),
                pygame.image.load('images/mario/left/run-left.png')]
+mario_climbing = [pygame.image.load('images/mario/climb/marioClimb1.png').convert_alpha(),
+                  pygame.image.load('images/mario/climb/marioClimb2.png').convert_alpha()]
 hight_mario = 36
 weight_mario = 24
 mario_speed_x = 7
+mario_speed_y = 7
 mario_x = 180
 mario_y = block_y - 40
 walking_stage = 0
+climbing_stage = 0
+mario_climb = False
 right = True
 is_jump = False
 last_block_y = block_y
@@ -176,8 +183,8 @@ def draw_level():
 def check_stairs():
     for stair in stairs_rect:
         if mario_rect.colliderect(stair):
-            return True
-    return False
+            return (True, stair.y, stair.x)
+    return (False, 0, 0)
 
 def on_block_mario():
     global mario_y, mario_x, is_jump, jump_count, is_on_block_mario, last_block_y
@@ -196,68 +203,83 @@ while not game_over:
 
     screen.fill((0, 0, 0))
     draw_level()
-    if right:
-        screen.blit(mario_right[walking_stage], (mario_x, mario_y))
-    else:
-        screen.blit(mario_left[walking_stage], (mario_x, mario_y))
     block_x = 60
     block_y = 950
 
     if game_play:
-        mario_rect = mario_right[0].get_rect(topleft=(mario_x, mario_y))
 
         keys = pygame.key.get_pressed()
 
-        if keys[pygame.K_LEFT]:
-            mario_x -= mario_speed_x
+        if not mario_climb:
             if right:
-                walking_stage = 0
-                right = False
+                screen.blit(mario_right[walking_stage], (mario_x, mario_y))
             else:
-                walking_stage += 1
-            if mario_x < 0:
-                mario_x = 0
-        elif keys[pygame.K_RIGHT]:
-            mario_x += mario_speed_x
-            if right:
-                walking_stage += 1
-            else:
-                walking_stage = 0
-                right = True
-            if mario_x > screen_weight - weight_mario:
-                mario_x = screen_weight - weight_mario
-        elif keys[pygame.K_UP]:
-            if check_stairs:
-                mario_y = 910
-                mario_x = 80
+                screen.blit(mario_left[walking_stage], (mario_x, mario_y))
+            mario_rect = mario_right[0].get_rect(topleft=(mario_x, mario_y))
 
-        on_block_mario()
-        if not is_on_block_mario and not is_jump:
-            mario_y += 10
-
-        if not is_jump:
-            if keys[pygame.K_SPACE]:
-                is_jump = True
-        else:
-            if jump_count >= -7:
-                if jump_count > 0:
-                    mario_y -= (jump_count)**2 / 2
+            if keys[pygame.K_LEFT]:
+                mario_x -= mario_speed_x
+                if right:
+                    walking_stage = 0
+                    right = False
                 else:
-                    mario_y += (jump_count)**2 / 2
+                    walking_stage += 1
+                if mario_x < 0:
+                    mario_x = 0
+            elif keys[pygame.K_RIGHT]:
+                mario_x += mario_speed_x
+                if right:
+                    walking_stage += 1
+                else:
+                    walking_stage = 0
+                    right = True
+                if mario_x > screen_weight - weight_mario:
+                    mario_x = screen_weight - weight_mario
+            elif keys[pygame.K_UP]:
+                flag, stair_y, stair_x = check_stairs()
+                if flag:
+                    walking_stage = 0
+                    mario_climb = True
 
-                jump_count -= 1
+            on_block_mario()
+            if not is_on_block_mario and not is_jump:
+                mario_y += 10
+
+            if not is_jump:
+                if keys[pygame.K_SPACE]:               
+                    is_jump = True
             else:
-                is_jump = False
-                jump_count = 7
+                if jump_count >= -7:
+                    if jump_count > 0:
+                        mario_y -= (jump_count)**2 / 2
+                    else:
+                        mario_y += (jump_count)**2 / 2
+
+                    jump_count -= 1
+                else:
+                    is_jump = False
+                    jump_count = 7
+                
+            if walking_stage == 4:
+                walking_stage = 0
+        else:
+            if keys[pygame.K_UP]:
+                climbing_stage += 1
+                if climbing_stage == 2:
+                    climbing_stage = 0
+                if mario_y > stair_y - hight_mario:
+                    mario_y -= mario_speed_y
+                else:
+                    mario_climb = False
+                    climbing_stage = 0
+            screen.blit(mario_climbing[climbing_stage], (stair_x, mario_y))
+            print(climbing_stage)
 
     pygame.display.update()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             game_over = True
-    
-    if walking_stage == 4:
-        walking_stage = 0
     
     clock.tick(13)
 
