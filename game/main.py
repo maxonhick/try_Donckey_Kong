@@ -5,7 +5,6 @@ clock = pygame.time.Clock()
 # высота и ширина лестницы 20
 # высота марио 36 ширина 24
 
-
 pygame.init()
 
 # настройки экрана
@@ -15,7 +14,6 @@ screen = pygame.display.set_mode((screen_weight, screen_hight))
 pygame.display.set_caption('Donckey Kong')
 
 square = pygame.Surface((20, 85))
-square.fill('Yellow')
 
 # пол
 block = pygame.image.load('images/Block.png').convert_alpha()
@@ -56,6 +54,7 @@ right = True
 is_jump = False
 last_block_y = block_y
 is_on_block_mario = False
+on_different_block = False
 jump_count = 7
 
 # игра продолжается
@@ -80,8 +79,7 @@ def draw_level():
                     screen.blit(stair, (block_x - 20, block_y - 54))
                     screen.blit(stair, (block_x - 20, block_y - 73))
                     if not full_stairs_rect:
-                        stairs_rect.append(square.get_rect(topleft=(block_x - 20, block_y - 95)))
-                    screen.blit(square, (block_x - 20, block_y - 95))
+                        stairs_rect.append(square.get_rect(topleft=(block_x - 20, block_y - 94)))
                 else:
                     screen.blit(block, (block_x, block_y))
                 blocks_rect.append(block.get_rect(topleft=(block_x, block_y)))
@@ -106,8 +104,7 @@ def draw_level():
                     screen.blit(stair, (block_x, block_y - 58))
                     screen.blit(stair, (block_x, block_y - 77))
                     if not full_stairs_rect:
-                        stairs_rect.append(square.get_rect(topleft=(block_x, block_y - 99)))
-                    screen.blit(square, (block_x, block_y - 99))
+                        stairs_rect.append(square.get_rect(topleft=(block_x, block_y - 98)))
                 elif _ == 3 and i == 2:
                     screen.blit(stair, (block_x + 50, block_y - 20))
                     screen.blit(block, (block_x, block_y))
@@ -120,8 +117,7 @@ def draw_level():
                     screen.blit(stair, (block_x, block_y - 58))
                     screen.blit(stair, (block_x, block_y - 77))
                     if not full_stairs_rect:
-                        stairs_rect.append(square.get_rect(topleft=(block_x, block_y - 117)))
-                    screen.blit(square, (block_x, block_y - 117))
+                        stairs_rect.append(square.get_rect(topleft=(block_x, block_y - 116)))
                 elif _ == 3 and i == 5:
                     screen.blit(stair, (block_x + 50, block_y - 20))
                     screen.blit(block, (block_x , block_y))
@@ -129,8 +125,7 @@ def draw_level():
                     screen.blit(stair, (block_x + 50, block_y - 58))
                     screen.blit(stair, (block_x + 50, block_y - 77))
                     if not full_stairs_rect:
-                        stairs_rect.append(square.get_rect(topleft=(block_x + 50, block_y - 107)))
-                    screen.blit(square, (block_x + 50, block_y - 107))
+                        stairs_rect.append(square.get_rect(topleft=(block_x + 50, block_y - 106)))
                 else:
                     screen.blit(block, (block_x, block_y))
                 blocks_rect.append(block.get_rect(topleft=(block_x, block_y)))
@@ -147,8 +142,7 @@ def draw_level():
                     screen.blit(stair, (block_x - 20, block_y - 54))
                     screen.blit(stair, (block_x - 20, block_y - 73))
                     if not full_stairs_rect:
-                        stairs_rect.append(square.get_rect(topleft=(block_x - 20, block_y - 95)))
-                    screen.blit(square, (block_x - 20, block_y - 95))
+                        stairs_rect.append(square.get_rect(topleft=(block_x - 20, block_y - 94)))
                 elif _ == 2 and i == 4:
                     screen.blit(block, (block_x, block_y))
                     screen.blit(stair, (block_x, block_y - 19))
@@ -157,8 +151,7 @@ def draw_level():
                     screen.blit(stair, (block_x, block_y - 73))
                     screen.blit(stair, (block_x, block_y - 92))
                     if not full_stairs_rect:
-                        stairs_rect.append(square.get_rect(topleft=(block_x, block_y - 115)))
-                    screen.blit(square, (block_x, block_y - 115))
+                        stairs_rect.append(square.get_rect(topleft=(block_x, block_y - 114)))
                 elif _ == 2 and i == 2:
                     screen.blit(stair, (block_x, block_y - 19))
                     screen.blit(block, (block_x, block_y))
@@ -198,6 +191,17 @@ def on_block_mario():
                     jump_count = 7
                 last_block_y = block.y
                 is_on_block_mario = True
+
+def mario_on_different_block():
+    global is_on_block_mario, on_different_block, last_block_y, mario_x, hight_mario, lenght_block
+    on_different_block = False
+    for block in blocks_rect:
+        if block.x <= mario_x <= block.x + lenght_block:
+            if -15 <= block.y - mario_y - hight_mario <= 5:
+                is_on_block_mario = True
+                if last_block_y != block.y:
+                    on_different_block = True
+                last_block_y = block.y
 
 while not game_over:
 
@@ -240,6 +244,11 @@ while not game_over:
                 if flag:
                     walking_stage = 0
                     mario_climb = True
+            elif keys[pygame.K_DOWN]:
+                flag, stair_y, stair_x = check_stairs()
+                if flag:
+                    walking_stage = 0
+                    mario_climb = True
 
             on_block_mario()
             if not is_on_block_mario and not is_jump:
@@ -272,8 +281,20 @@ while not game_over:
                 else:
                     mario_climb = False
                     climbing_stage = 0
+            elif keys[pygame.K_DOWN] and mario_y - stair_y < 85:
+                climbing_stage += 1
+                if climbing_stage == 2:
+                    climbing_stage = 0
+                mario_on_different_block()
+                if on_different_block:
+                    mario_climb = False
+                    climbing_stage = 0
+                elif is_on_block_mario and mario_y - stair_y > 0:
+                    mario_climb = False
+                    climbing_stage = 0
+                else:
+                    mario_y += mario_speed_y
             screen.blit(mario_climbing[climbing_stage], (stair_x, mario_y))
-            print(climbing_stage)
 
     pygame.display.update()
 
