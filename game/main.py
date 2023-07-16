@@ -1,4 +1,5 @@
 import pygame
+import random
 
 clock = pygame.time.Clock()
 
@@ -15,6 +16,12 @@ pygame.display.set_caption('Donckey Kong')
 
 square = pygame.Surface((20, 85))
 
+# fonts and label
+font = pygame.font.Font('fonts/OpenSans-Italic-VariableFont_wdth,wght.ttf', 40)
+lose_label = font.render('Игра окончена', False, 'Red')
+restart_label = font.render('Попробовать снова', False, (63, 137, 205))
+restart_label_rect = restart_label.get_rect(topleft=(230, 600))
+
 # пол
 block = pygame.image.load('images/Block.png').convert_alpha()
 block_x = 60
@@ -22,6 +29,8 @@ block_y = 950
 hight_block = 33
 lenght_block = 70
 blocks_rect = []
+last_level_x = 200
+last_level_y = 260
 
 # stairs
 stair = pygame.image.load('images/ladder4.png').convert_alpha()
@@ -30,17 +39,34 @@ full_stairs_rect = False
 stair_y = 0
 stair_x = 0
 
+# barrels
+barrels_stack = pygame.image.load('images/barrel/barrel-stack.png').convert_alpha()
+barrel_timer = pygame.USEREVENT + 1
+barrel_go_down = pygame.image.load('images/barrel/barrel-down.png').convert_alpha()
+barrel = [pygame.image.load('images/barrel/barrel1.png').convert_alpha(),
+          pygame.image.load('images/barrel/barrel2.png').convert_alpha(),
+          pygame.image.load('images/barrel/barrel3.png').convert_alpha(),
+          pygame.image.load('images/barrel/barrel4.png').convert_alpha()
+          ]
+barrels = []
+start_barrel_x = 180
+start_barrel_y = 350
+pygame.time.set_timer(barrel_timer, 3500)
+
 # mario
 mario_right = [pygame.image.load('images/mario/right/mario-right.png').convert_alpha(),
                pygame.image.load('images/mario/right/jump-right.png').convert_alpha(),
                pygame.image.load('images/mario/right/mario-right.png').convert_alpha(),
-               pygame.image.load('images/mario/right/run-right.png').convert_alpha()]
+               pygame.image.load('images/mario/right/run-right.png').convert_alpha()
+               ]
 mario_left = [pygame.image.load('images/mario/left/mario-left.png').convert_alpha(),
                pygame.image.load('images/mario/left/jump-left.png').convert_alpha(),
                pygame.image.load('images/mario/left/mario-left.png').convert_alpha(),
-               pygame.image.load('images/mario/left/run-left.png')]
+               pygame.image.load('images/mario/left/run-left.png')
+               ]
 mario_climbing = [pygame.image.load('images/mario/climb/marioClimb1.png').convert_alpha(),
-                  pygame.image.load('images/mario/climb/marioClimb2.png').convert_alpha()]
+                  pygame.image.load('images/mario/climb/marioClimb2.png').convert_alpha()
+                  ]
 hight_mario = 36
 weight_mario = 24
 mario_speed_x = 7
@@ -62,9 +88,9 @@ game_over = False
 game_play = True
 
 def draw_level():
-    global block_x, block_y, hight_mario, hight_block, mario_y, lenght_block, is_jump, jump_count, full_stairs_rect
+    global last_level_x, last_level_y, block_x, block_y, hight_mario, hight_block, mario_y, lenght_block, is_jump, jump_count, full_stairs_rect
     blocks_rect.clear()
-    for _ in range(6):
+    for _ in range(7):
         if _ == 0:
             for i in range(10):
                 if i == 4:
@@ -92,9 +118,25 @@ def draw_level():
             for i in range(9):
                 blocks_rect.append(block.get_rect(topleft=(block_x, block_y)))
                 screen.blit(block, (block_x, block_y))
+                if i == 8:
+                    screen.blit(barrels_stack, (block_x, block_y - 80))
                 block_x -= 70
                 if i < 4:
                     block_y -= 4
+        elif _ == 6:
+            for i in range(3):
+                blocks_rect.append(block.get_rect(topleft=(last_level_x, last_level_y)))
+                if i == 2:
+                    screen.blit(stair, (last_level_x + 50, last_level_y))
+                    screen.blit(stair, (last_level_x + 50, last_level_y + 19))
+                    screen.blit(stair, (last_level_x + 50, last_level_y + 38))
+                    screen.blit(stair, (last_level_x + 50, last_level_y + 57))
+                    screen.blit(stair, (last_level_x + 50, last_level_y + 76))
+                    screen.blit(stair, (last_level_x + 50, last_level_y + 95))
+                if not full_stairs_rect:
+                    stairs_rect.append(square.get_rect(topleft=(last_level_x + 50, last_level_y - 4)))
+                screen.blit(block, (last_level_x, last_level_y))
+                last_level_x += 70
         elif _ % 2:
             for i in range(9):
                 if i == 6:
@@ -172,6 +214,99 @@ def draw_level():
             block_x -= 140
             block_y -= (hight_mario + hight_block + 10)
     full_stairs_rect = True
+    last_level_x = 200
+
+def barrel_collapsed_stair(el):
+    rect = el[0]
+    last_stair_rect = el[5]
+    for stair in stairs_rect:
+        if rect.colliderect(stair) and rect.y < stair.y and last_stair_rect != stair:
+            rect.x = stair.x
+            el[5] = stair
+            return True
+    return False
+
+def barrel_on_block(rect):
+    global blocks_rect, lenght_block
+    for block in blocks_rect:
+        if rect[7] :
+            if block.x - 29 <= rect[0].x <= block.x + lenght_block:
+                if -8 <= block.y - rect[0].y - 24 <= 5 and rect[6].y - block.y <= -25:
+                    rect[6] = block
+                    rect[7] = False
+                    rect[0].y = block.y - 24
+                    rect[3] = False
+                    return True
+        else:
+            if block.x - 29 <= rect[0].x <= block.x + lenght_block:
+                if -8 <= block.y - rect[0].y - 24 <= 5:
+                    rect[6] = block
+                    rect[0].y = block.y - 24
+                    rect[3] = False
+                    return True
+    if not rect[3]:
+        rect[3] = True
+        rect[1] = not rect[1]
+    return False
+
+def draw_barrels():
+    global screen_hight, game_play
+    for (i, el) in enumerate(barrels):
+        if el[0].x > 820 or el[0].x < - 29 or el[0].y > screen_hight:
+            barrels.pop(i)
+        else:
+            if mario_rect.colliderect(el[0]):
+                game_play = False
+            
+            if el[4]:
+                if not barrel_on_block(el):
+                    el[2] = 0
+                    screen.blit(barrel_go_down, el[0])
+                    el[0].y += 10
+                else:
+                    el[4] = False
+                    screen.blit(barrel[el[2]], el[0])
+                    el[2] += 1
+                    if el[2] == 4:
+                        el[2] = 0
+
+                    if el[1]:
+                        el[0].x += 10
+                    else:
+                        el[0].x -= 10
+            else:
+                if barrel_collapsed_stair(el):
+                    el[7] = random.randint(0, 1)
+                    if el[7]: 
+                        el[4] = True
+                        el[2] = 0
+                        screen.blit(barrel_go_down, el[0])
+                        el[0].y += 10
+                    else:
+                        screen.blit(barrel[el[2]], el[0])
+                        el[2] += 1
+                        if el[2] == 4:
+                            el[2] = 0
+
+                        if el[1]:
+                            el[0].x += 10
+                        else:
+                            el[0].x -= 10
+                else:
+                    if not barrel_on_block(el):
+                        el[2] = 0
+                        screen.blit(barrel_go_down, el[0])
+                        el[0].y += 10
+                    else:
+                        screen.blit(barrel[el[2]], el[0])
+                        el[2] += 1
+                        if el[2] == 4:
+                            el[2] = 0
+
+                        if el[1]:
+                            el[0].x += 10
+                        else:
+                            el[0].x -= 10
 
 def check_stairs():
     for stair in stairs_rect:
@@ -207,6 +342,7 @@ while not game_over:
 
     screen.fill((0, 0, 0))
     draw_level()
+    draw_barrels()
     block_x = 60
     block_y = 950
 
@@ -295,12 +431,40 @@ while not game_over:
                 else:
                     mario_y += mario_speed_y
             screen.blit(mario_climbing[climbing_stage], (stair_x, mario_y))
+    else:
+        screen.fill('Black')
+        screen.blit(lose_label, (280, 520))
+        screen.blit(restart_label, restart_label_rect)
+        pygame.time.set_timer(barrel_timer, 0)
+        barrels.clear()
+        mario_x = 180
+        mario_y = block_y - 40
 
-    pygame.display.update()
+        mouse = pygame.mouse.get_pos()
+        if restart_label_rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
+            walking_stage = 0
+            climbing_stage = 0
+            game_play = True
+            mario_climb = False
+            right = True
+            is_jump = False
+            last_block_y = block_y
+            is_on_block_mario = False
+            on_different_block = False
+            pygame.time.set_timer(barrel_timer, 3500)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             game_over = True
+
+        if event.type == barrel_timer:
+            if [barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), True, 0, False, False, None, barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), False] in barrels:
+                continue
+            else:
+                barrels.append([barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), True, 0, False, False, None, barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), False])
+            # 0 barrel_rect,1 right,2 animation stage,3 is_changed_right,4 is barrel on stair,5 last stair rect,6 last block rect, 7 go down on stair
+    
+    pygame.display.update()
     
     clock.tick(13)
 
