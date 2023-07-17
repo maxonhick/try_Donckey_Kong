@@ -41,6 +41,8 @@ stair_x = 0
 
 # barrels
 barrels_stack = pygame.image.load('images/barrel/barrel-stack.png').convert_alpha()
+Kong_Timer = pygame.USEREVENT + 1
+Last_Kong_Timer = pygame.USEREVENT + 1
 barrel_timer = pygame.USEREVENT + 1
 barrel_go_down = pygame.image.load('images/barrel/barrel-down.png').convert_alpha()
 barrel = [pygame.image.load('images/barrel/barrel1.png').convert_alpha(),
@@ -49,9 +51,9 @@ barrel = [pygame.image.load('images/barrel/barrel1.png').convert_alpha(),
           pygame.image.load('images/barrel/barrel4.png').convert_alpha()
           ]
 barrels = []
-start_barrel_x = 180
+start_barrel_x = 248
 start_barrel_y = 350
-pygame.time.set_timer(barrel_timer, 3500)
+pygame.time.set_timer(Kong_Timer, 3500)
 
 # mario
 mario_right = [pygame.image.load('images/mario/right/mario-right.png').convert_alpha(),
@@ -82,6 +84,16 @@ last_block_y = block_y
 is_on_block_mario = False
 on_different_block = False
 jump_count = 7
+
+# Donckey Kong
+dk_throw = [pygame.image.load('images/dk/dkLeft.png').convert_alpha(),
+            pygame.image.load('images/dk/dkRight.png').convert_alpha()
+            ]
+dk_stand = pygame.image.load('images/dk/dkStand.png').convert_alpha()
+dk_x = 120
+dk_y = 282
+throw_animation = 1
+number_timer = 0
 
 # игра продолжается
 game_over = False
@@ -340,22 +352,31 @@ def mario_on_different_block():
 
 while not game_over:
 
+    mario_rect = mario_right[0].get_rect(topleft=(mario_x, mario_y))
     screen.fill((0, 0, 0))
     draw_level()
     draw_barrels()
     block_x = 60
     block_y = 950
 
+    events = pygame.event.get() 
+
     if game_play:
 
         keys = pygame.key.get_pressed()
+
+        if number_timer == 0:
+            screen.blit(dk_stand, (dk_x, dk_y))
+        elif number_timer == 1:
+            screen.blit(dk_throw[0], (dk_x, dk_y))
+        elif number_timer == 2:
+            screen.blit(dk_throw[1], (dk_x, dk_y))
 
         if not mario_climb:
             if right:
                 screen.blit(mario_right[walking_stage], (mario_x, mario_y))
             else:
                 screen.blit(mario_left[walking_stage], (mario_x, mario_y))
-            mario_rect = mario_right[0].get_rect(topleft=(mario_x, mario_y))
 
             if keys[pygame.K_LEFT]:
                 mario_x -= mario_speed_x
@@ -435,7 +456,7 @@ while not game_over:
         screen.fill('Black')
         screen.blit(lose_label, (280, 520))
         screen.blit(restart_label, restart_label_rect)
-        pygame.time.set_timer(barrel_timer, 0)
+        pygame.time.set_timer(Kong_Timer, 0)
         barrels.clear()
         mario_x = 180
         mario_y = block_y - 40
@@ -451,18 +472,27 @@ while not game_over:
             last_block_y = block_y
             is_on_block_mario = False
             on_different_block = False
-            pygame.time.set_timer(barrel_timer, 3500)
-
-    for event in pygame.event.get():
+            pygame.time.set_timer(Kong_Timer, 3500)
+    
+    for event in events:
         if event.type == pygame.QUIT:
             game_over = True
-
-        if event.type == barrel_timer:
+        elif event.type == Kong_Timer and number_timer == 0:
+            number_timer = 1
+            pygame.time.set_timer(Kong_Timer, 3500)
+            pygame.time.set_timer(barrel_timer, 1000)
+        elif event.type == barrel_timer and number_timer == 1:
             if [barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), True, 0, False, False, None, barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), False] in barrels:
                 continue
             else:
+                number_timer = 2
+                pygame.time.set_timer(barrel_timer, 3500)
+                pygame.time.set_timer(Last_Kong_Timer, 1000)
                 barrels.append([barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), True, 0, False, False, None, barrel[0].get_rect(topleft=(start_barrel_x, start_barrel_y)), False])
             # 0 barrel_rect,1 right,2 animation stage,3 is_changed_right,4 is barrel on stair,5 last stair rect,6 last block rect, 7 go down on stair
+        elif event.type == Last_Kong_Timer and number_timer == 2:
+            pygame.time.set_timer(Last_Kong_Timer, 1000)
+            number_timer = 0
     
     pygame.display.update()
     
