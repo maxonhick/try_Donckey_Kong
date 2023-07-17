@@ -21,6 +21,9 @@ font = pygame.font.Font('fonts/OpenSans-Italic-VariableFont_wdth,wght.ttf', 40)
 lose_label = font.render('Игра окончена', False, 'Red')
 restart_label = font.render('Попробовать снова', False, (63, 137, 205))
 restart_label_rect = restart_label.get_rect(topleft=(230, 600))
+win_label = font.render('Игра пройдена', False, 'Red')
+try_again_label = font.render('Повторишь свой успех?', False, (63, 137, 205))
+try_again_label_rect = try_again_label.get_rect(topleft=(210, 600))
 
 # пол
 block = pygame.image.load('images/Block.png').convert_alpha()
@@ -94,6 +97,11 @@ dk_x = 120
 dk_y = 282
 throw_animation = 1
 number_timer = 0
+
+# queen
+queen = pygame.image.load('images/queen/queen1.png').convert_alpha()
+queen_x = 235
+queen_y = 208
 
 # игра продолжается
 game_over = False
@@ -227,6 +235,7 @@ def draw_level():
             block_y -= (hight_mario + hight_block + 10)
     full_stairs_rect = True
     last_level_x = 200
+    screen.blit(queen, (queen_x, queen_y))
 
 def barrel_collapsed_stair(el):
     rect = el[0]
@@ -350,6 +359,12 @@ def mario_on_different_block():
                     on_different_block = True
                 last_block_y = block.y
 
+def mario_win():
+    if mario_rect.y < 230 and not is_jump and is_on_block_mario:
+        return True
+    else:
+        return False
+
 while not game_over:
 
     mario_rect = mario_right[0].get_rect(topleft=(mario_x, mario_y))
@@ -361,7 +376,29 @@ while not game_over:
 
     events = pygame.event.get() 
 
-    if game_play:
+    if mario_win():
+        screen.fill('Black')
+        screen.blit(win_label, (280, 520))
+        screen.blit(try_again_label, try_again_label_rect)
+        pygame.time.set_timer(Kong_Timer, 0)
+        barrels.clear()
+
+        mouse = pygame.mouse.get_pos()
+        if try_again_label_rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
+            walking_stage = 0
+            climbing_stage = 0
+            number_timer = 0
+            game_play = True
+            mario_climb = False
+            right = True
+            is_jump = False
+            last_block_y = block_y
+            is_on_block_mario = False
+            on_different_block = False
+            mario_x = 180
+            mario_y = block_y - 40
+            pygame.time.set_timer(Kong_Timer, 3500)
+    elif game_play:
 
         keys = pygame.key.get_pressed()
 
@@ -465,6 +502,7 @@ while not game_over:
         if restart_label_rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
             walking_stage = 0
             climbing_stage = 0
+            number_timer = 0
             game_play = True
             mario_climb = False
             right = True
