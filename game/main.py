@@ -42,11 +42,14 @@ full_stairs_rect = False
 stair_y = 0
 stair_x = 0
 
+# timers
+Kong_Timer = pygame.USEREVENT + 2
+Last_Kong_Timer = pygame.USEREVENT + 2
+barrel_timer = pygame.USEREVENT + 2
+hammer_timer = pygame.USEREVENT + 2
+
 # barrels
 barrels_stack = pygame.image.load('images/barrel/barrel-stack.png').convert_alpha()
-Kong_Timer = pygame.USEREVENT + 1
-Last_Kong_Timer = pygame.USEREVENT + 1
-barrel_timer = pygame.USEREVENT + 1
 barrel_go_down = pygame.image.load('images/barrel/barrel-down.png').convert_alpha()
 barrel = [pygame.image.load('images/barrel/barrel1.png').convert_alpha(),
           pygame.image.load('images/barrel/barrel2.png').convert_alpha(),
@@ -72,20 +75,32 @@ mario_left = [pygame.image.load('images/mario/left/mario-left.png').convert_alph
 mario_climbing = [pygame.image.load('images/mario/climb/marioClimb1.png').convert_alpha(),
                   pygame.image.load('images/mario/climb/marioClimb2.png').convert_alpha()
                   ]
+mario_hammer_right = [pygame.transform.scale(pygame.image.load('images/mario/hammer/hammer_stand.png').convert_alpha(), (55, 36)),
+                pygame.transform.scale(pygame.image.load('images/mario/hammer/hammer_jump.png').convert_alpha(), (55, 36)),
+                pygame.transform.scale(pygame.image.load('images/mario/hammer/hammer_stand.png').convert_alpha(), (55, 36)),
+                pygame.transform.scale(pygame.image.load('images/mario/hammer/hammer_overhead.png').convert_alpha(), (40, 60))
+                ]
+mario_hammer_left = [pygame.transform.flip(mario_hammer_right[0], True, False),
+                     pygame.transform.flip(mario_hammer_right[1], True, False),
+                     pygame.transform.flip(mario_hammer_right[2], True, False),
+                     pygame.transform.flip(mario_hammer_right[3], True, False)
+                     ]
 hight_mario = 36
 weight_mario = 24
-mario_speed_x = 7
+mario_speed_x = 5
 mario_speed_y = 7
 mario_x = 180
 mario_y = block_y - 40
 walking_stage = 0
 climbing_stage = 0
+hammer_stage = 0
 mario_climb = False
 right = True
 is_jump = False
 last_block_y = block_y
 is_on_block_mario = False
 on_different_block = False
+mario_with_hammer = False
 jump_count = 7
 
 # Donckey Kong
@@ -102,6 +117,13 @@ number_timer = 0
 queen = pygame.image.load('images/queen/queen1.png').convert_alpha()
 queen_x = 235
 queen_y = 208
+
+# hammer
+hammer = pygame.transform.scale(pygame.image.load('images/hammer.webp').convert_alpha(), (21, 25))
+hammers_rect = [hammer.get_rect(topleft=(90, 440)),
+                hammer.get_rect(topleft=(90, 670))
+                ]
+hammer_timer = pygame.USEREVENT + 1
 
 # игра продолжается
 game_over = False
@@ -271,13 +293,17 @@ def barrel_on_block(rect):
     return False
 
 def draw_barrels():
-    global screen_hight, game_play
+    global screen_hight, game_play, mario_with_hammer
     for (i, el) in enumerate(barrels):
         if el[0].x > 820 or el[0].x < - 29 or el[0].y > screen_hight:
             barrels.pop(i)
         else:
             if mario_rect.colliderect(el[0]):
-                game_play = False
+                if mario_with_hammer and not mario_climb:
+                    barrels.pop(i)
+                    continue
+                else:
+                    game_play = False
             
             if el[4]:
                 if not barrel_on_block(el):
@@ -329,6 +355,17 @@ def draw_barrels():
                         else:
                             el[0].x -= 10
 
+def draw_hummers():
+    global mario_with_hammer, mario_rect, walking_stage, climbing_stage
+    for (i, rect)in enumerate(hammers_rect):
+        screen.blit(hammer, rect)
+        if rect.colliderect(mario_rect):
+            mario_with_hammer = True
+            walking_stage = 0
+            climbing_stage = 0
+            hammers_rect.pop(i)
+            pygame.time.set_timer(hammer_timer, 5000)
+
 def check_stairs():
     for stair in stairs_rect:
         if mario_rect.colliderect(stair):
@@ -367,12 +404,31 @@ def mario_win():
 
 while not game_over:
 
-    mario_rect = mario_right[0].get_rect(topleft=(mario_x, mario_y))
+    if not mario_with_hammer:
+        if right:
+            mario_rect = mario_right[walking_stage].get_rect(topleft=(mario_x, mario_y))
+        else:
+            mario_rect = mario_left[walking_stage].get_rect(topleft=(mario_x, mario_y))
+    else:
+        if right:
+            if hammer_stage == 3:
+                change_y = -24
+            else:
+                change_y = 0
+            mario_rect = mario_hammer_right[hammer_stage].get_rect(topleft=(mario_x, mario_y + change_y))
+        else:
+            if hammer_stage == 3:
+                change_y = -24
+            else:
+                change_y = 0
+            mario_rect = mario_hammer_left[hammer_stage].get_rect(topleft=(mario_x, mario_y + change_y))
+
     screen.fill((0, 0, 0))
     draw_level()
     draw_barrels()
     block_x = 60
     block_y = 950
+    draw_hummers()
 
     events = pygame.event.get() 
 
@@ -395,8 +451,13 @@ while not game_over:
             last_block_y = block_y
             is_on_block_mario = False
             on_different_block = False
+            mario_with_hammer = False
+            hammer_stage = 0
             mario_x = 180
             mario_y = block_y - 40
+            hammers_rect = [hammer.get_rect(topleft=(90, 440)),
+                            hammer.get_rect(topleft=(90, 670))
+                            ]
             pygame.time.set_timer(Kong_Timer, 3500)
     elif game_play:
 
@@ -410,38 +471,58 @@ while not game_over:
             screen.blit(dk_throw[1], (dk_x, dk_y))
 
         if not mario_climb:
-            if right:
-                screen.blit(mario_right[walking_stage], (mario_x, mario_y))
+            if not mario_with_hammer:
+                if right:
+                    screen.blit(mario_right[walking_stage], mario_rect)
+                else:
+                    screen.blit(mario_left[walking_stage], mario_rect)
             else:
-                screen.blit(mario_left[walking_stage], (mario_x, mario_y))
+                if right:
+                    screen.blit(mario_hammer_right[hammer_stage], mario_rect)
+                else:
+                    screen.blit(mario_hammer_left[hammer_stage], mario_rect)
 
             if keys[pygame.K_LEFT]:
                 mario_x -= mario_speed_x
-                if right:
-                    walking_stage = 0
-                    right = False
+
+                if not mario_with_hammer:
+                    if right:
+                        walking_stage = 0
+                        right = False
+                    else:
+                        walking_stage += 1
                 else:
-                    walking_stage += 1
-                if mario_x < 0:
-                    mario_x = 0
+                    if right:
+                        hasattr_stage = 0
+                        right = False
+                    else:
+                        hammer_stage += 1
             elif keys[pygame.K_RIGHT]:
                 mario_x += mario_speed_x
-                if right:
-                    walking_stage += 1
+
+                if not mario_with_hammer:
+                    if right:
+                        walking_stage += 1
+                    else:
+                        walking_stage = 0
+                        right = True
                 else:
-                    walking_stage = 0
-                    right = True
-                if mario_x > screen_weight - weight_mario:
-                    mario_x = screen_weight - weight_mario
+                    if right:
+                        hammer_stage += 1
+                    else:
+                        hammer_stage = 0
+                        right = True
             elif keys[pygame.K_UP]:
                 flag, stair_y, stair_x = check_stairs()
                 if flag:
                     walking_stage = 0
+                    hammer_stage = 0
                     mario_climb = True
             elif keys[pygame.K_DOWN]:
                 flag, stair_y, stair_x = check_stairs()
                 if flag:
                     walking_stage = 0
+                    hammer_stage = 0
                     mario_climb = True
 
             on_block_mario()
@@ -465,9 +546,14 @@ while not game_over:
                 
             if walking_stage == 4:
                 walking_stage = 0
+            
+            if hammer_stage == 4:
+                hammer_stage = 0
         else:
             if keys[pygame.K_UP]:
+
                 climbing_stage += 1
+
                 if climbing_stage == 2:
                     climbing_stage = 0
                 if mario_y > stair_y - hight_mario:
@@ -476,10 +562,14 @@ while not game_over:
                     mario_climb = False
                     climbing_stage = 0
             elif keys[pygame.K_DOWN] and mario_y - stair_y < 85:
+
                 climbing_stage += 1
+
                 if climbing_stage == 2:
                     climbing_stage = 0
+
                 mario_on_different_block()
+
                 if on_different_block:
                     mario_climb = False
                     climbing_stage = 0
@@ -488,6 +578,7 @@ while not game_over:
                     climbing_stage = 0
                 else:
                     mario_y += mario_speed_y
+
             screen.blit(mario_climbing[climbing_stage], (stair_x, mario_y))
     else:
         screen.fill('Black')
@@ -510,6 +601,11 @@ while not game_over:
             last_block_y = block_y
             is_on_block_mario = False
             on_different_block = False
+            mario_with_hammer = False
+            hammer_stage = 0
+            hammers_rect = [hammer.get_rect(topleft=(90, 440)),
+                            hammer.get_rect(topleft=(90, 670))
+                            ]
             pygame.time.set_timer(Kong_Timer, 3500)
     
     for event in events:
@@ -531,6 +627,13 @@ while not game_over:
         elif event.type == Last_Kong_Timer and number_timer == 2:
             pygame.time.set_timer(Last_Kong_Timer, 1000)
             number_timer = 0
+        elif event.type == hammer_timer:
+            mario_with_hammer = False
+            hammer_stage = 0
+            hammers_rect = [hammer.get_rect(topleft=(90, 440)),
+                            hammer.get_rect(topleft=(90, 670))
+                            ]
+            pygame.time.set_timer(hammer_timer, 0)
     
     pygame.display.update()
     
